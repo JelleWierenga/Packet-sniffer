@@ -1,5 +1,7 @@
 from scapy.all import *
 import pandas as pd
+import networkx as nx
+import matplotlib.pyplot as plt
 
 df = pd.DataFrame(columns=["Packet No.", "Type", "Source", "Destination", "Protocol"])
 
@@ -11,7 +13,7 @@ question = input("Do you wish to see the packet info for a specific packet or al
 
 if question == "specific":
     number = int(input("Enter the number of the packet you want to see: "))
-    if number <= Amount:
+    if number < Amount:
         if packets[number].haslayer(IP):
             print("IP packet")
             source = packets[number][IP].src
@@ -40,7 +42,8 @@ if question == "specific":
             print("Not an IP or ARP packet")
 
 elif question == "all":
-    question = input(f"Do you wish to see all the {Amount} packets in the CLI or in a file or database? (CLI/database): ")
+    question = input(
+        f"Do you wish to see all the {Amount} packets in the CLI or in a file or database? (CLI/database): ")
     if question == "CLI":
         for i in range(Amount):
             if packets[i].haslayer(IP):
@@ -76,7 +79,8 @@ elif question == "all":
                 destination = packets[i][IP].dst
                 type = packets[i][Ether].type
                 proto = packets[i][IP].proto
-                df.loc[len(df.index)] = [f"packet {i}", "IP", source, destination, "TCP" if proto == 6 else ("UDP" if proto == 17 else ("ICMP" if proto == 1 else f"Unknown protocol ({proto})"))]
+                df.loc[len(df.index)] = [f"packet {i}", "IP", source, destination, "TCP" if proto == 6 else (
+                    "UDP" if proto == 17 else ("ICMP" if proto == 1 else f"Unknown protocol ({proto})"))]
             elif packets[i].haslayer(ARP):
                 source = packets[i][ARP].psrc
                 destination = packets[i][ARP].pdst
@@ -88,3 +92,13 @@ elif question == "all":
         print("Saving the packet details in a file...")
         df.to_excel(f"{fileName}.xlsx", index=False)
         print("Packet details saved successfully!")
+
+        if not df.empty:
+            G = nx.from_pandas_edgelist(df[df['Source'] != "Unknown"], "Source", "Destination", edge_attr=["Protocol"])
+
+            plt.figure(figsize=(10, 7))
+            pos = nx.spring_layout(G)
+            nx.draw(G, pos, with_labels=True, node_color='skyblue', node_size=2000, edge_color='k', font_size=10)
+            labels = nx.get_edge_attributes(G, 'Protocol')
+            nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+            plt.show()
